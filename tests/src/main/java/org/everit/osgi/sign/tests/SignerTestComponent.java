@@ -30,22 +30,20 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
-import org.everit.osgi.dev.testrunner.TestDuringDevelopment;
 import org.everit.osgi.dev.testrunner.TestRunnerConstants;
 import org.everit.osgi.sign.Signer;
 import org.junit.Assert;
 import org.junit.Test;
 
-@Component(immediate = true, metatype = true, policy = ConfigurationPolicy.REQUIRE)
+@Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Properties({
         @Property(name = TestRunnerConstants.SERVICE_PROPERTY_TESTRUNNER_ENGINE_TYPE, value = "junit4"),
         @Property(name = TestRunnerConstants.SERVICE_PROPERTY_TEST_ID, value = "SignerTestComponent"),
         @Property(name = "signer.target") })
 @Service(value = SignerTestComponent.class)
-@TestDuringDevelopment
 public class SignerTestComponent {
 
-    @Reference
+    @Reference(bind = "bindSigner")
     private Signer signer;
 
     @Activate

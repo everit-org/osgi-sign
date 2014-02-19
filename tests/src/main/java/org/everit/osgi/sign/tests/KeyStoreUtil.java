@@ -31,35 +31,30 @@ import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.Security;
 import java.security.cert.Certificate;
 import java.util.Calendar;
 import java.util.Date;
 
 import org.bouncycastle.jce.X509Principal;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
 
-public final class TestKeyStoreUtil {
+public final class KeyStoreUtil {
 
-    public static void createBCKeyStore(final String keyStoreType,
+    public static void createKeyStore(final Provider provider, final String keyStoreType,
             final String keyStoreLocation, final String keyStorePassword, final String signatureAlgorithm,
-            final String privateKeyAlias, final PrivateKey privateKey, final char[] privateKeyPassword,
+            final String privateKeyAlias, final PrivateKey privateKey, final String privateKeyPassword,
             final String publicKeyAlias, final PublicKey publicKey) {
-        Provider provider = new BouncyCastleProvider();
-        Security.addProvider(provider);
         try (OutputStream fos = new FileOutputStream(keyStoreLocation)) {
             KeyStore ks = KeyStore.getInstance(keyStoreType, provider);
             ks.load(null, null);
             Certificate[] certificateChain = {
-                    TestKeyStoreUtil.generateCertificate(privateKey, publicKey, signatureAlgorithm)
+                    KeyStoreUtil.generateCertificate(privateKey, publicKey, signatureAlgorithm)
             };
-            ks.setKeyEntry(privateKeyAlias, privateKey, privateKeyPassword, certificateChain);
+            ks.setKeyEntry(privateKeyAlias, privateKey, privateKeyPassword.toCharArray(), certificateChain);
+            ks.setCertificateEntry(publicKeyAlias, certificateChain[0]);
             ks.store(fos, keyStorePassword.toCharArray());
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            Security.removeProvider(provider.getName());
         }
     }
 
@@ -81,9 +76,8 @@ public final class TestKeyStoreUtil {
         return v3CertGen.generateX509Certificate(privateKey);
     }
 
-    public static KeyPair generateKeyPair(final String keyPairAlgorithm, final String secureAlgorithm) {
-        Provider provider = new BouncyCastleProvider();
-        Security.addProvider(provider);
+    public static KeyPair generateKeyPair(final Provider provider, final String keyPairAlgorithm,
+            final String secureAlgorithm) {
         try {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(keyPairAlgorithm, provider);
             SecureRandom secureRandom = SecureRandom.getInstance(secureAlgorithm);
@@ -92,12 +86,10 @@ public final class TestKeyStoreUtil {
             return keyPair;
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            Security.removeProvider(provider.getName());
         }
     }
 
-    private TestKeyStoreUtil() {
+    private KeyStoreUtil() {
     }
 
 }

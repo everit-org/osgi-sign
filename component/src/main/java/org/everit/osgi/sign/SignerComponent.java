@@ -32,12 +32,12 @@ import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.Certificate;
 import java.security.spec.AlgorithmParameterSpec;
+import java.util.Enumeration;
 import java.util.Map;
 
 import org.apache.felix.scr.annotations.Activate;
@@ -71,9 +71,13 @@ public class SignerComponent implements Signer {
 
     private PublicKey publicKey;
 
+    private String aliases;
+
     @Activate
     public void activate(final BundleContext context, final Map<String, Object> componentProperties)
             throws ConfigurationException {
+        initAliases();
+
         String privateKeyAlias = getStringProperty(componentProperties, PropertyName.PRIVATE_KEY_ALIAS, false);
         String privateKeyPassword = getStringProperty(componentProperties, PropertyName.PRIVATE_KEY_PASSWORD, false);
         String publicKeyAlias = getStringProperty(componentProperties, PropertyName.PUBLIC_KEY_ALIAS, false);
@@ -88,7 +92,6 @@ public class SignerComponent implements Signer {
 
     public void bindProvider(final Provider provider) {
         this.provider = provider;
-        Security.addProvider(provider);
     }
 
     private String getStringProperty(final Map<String, Object> componentProperties, final String propertyName,
@@ -104,6 +107,24 @@ public class SignerComponent implements Signer {
         return stringValue;
     }
 
+    private void initAliases() throws ConfigurationException {
+        Enumeration<String> aliasesEnum;
+        try {
+            aliasesEnum = keyStore.aliases();
+        } catch (KeyStoreException e) {
+            throw new ConfigurationException(null, "Failed to get the available aliases from the keystore", e);
+        }
+        StringBuffer sb = new StringBuffer();
+        while (aliasesEnum.hasMoreElements()) {
+            String alias = aliasesEnum.nextElement();
+            sb.append(alias);
+            if (aliasesEnum.hasMoreElements()) {
+                sb.append(",");
+            }
+        }
+        aliases = sb.toString();
+    }
+
     private void initPrivateKey(final String privateKeyAlias, final String privateKeyPassword)
             throws ConfigurationException {
         privateKey = null;
@@ -116,7 +137,7 @@ public class SignerComponent implements Signer {
             privateKey = privateKeyEntry.getPrivateKey();
         } catch (NoSuchAlgorithmException | UnrecoverableEntryException | KeyStoreException e) {
             throw new ConfigurationException(null, "failed to load private key ["
-                    + privateKeyAlias + "] from the given keystore");
+                    + privateKeyAlias + "] from the given keystore, available aliases are [" + aliases + "]", e);
         }
     }
 
@@ -127,10 +148,14 @@ public class SignerComponent implements Signer {
         }
         try {
             Certificate certificate = keyStore.getCertificate(publicKeyAlias);
+            if (certificate == null) {
+                throw new ConfigurationException(null, "failed to load public key ["
+                        + publicKeyAlias + "] from the given keystore, available aliases are [" + aliases + "]");
+            }
             publicKey = certificate.getPublicKey();
         } catch (KeyStoreException e) {
             throw new ConfigurationException(null, "failed to load public key ["
-                    + publicKeyAlias + "] from the given keystore");
+                    + publicKeyAlias + "] from the given keystore, available aliases are [" + aliases + "]");
         }
     }
 
@@ -163,7 +188,6 @@ public class SignerComponent implements Signer {
     }
 
     public void unbindProvider(final Provider provider) {
-        Security.removeProvider(provider.getName());
         this.provider = null;
     }
 
